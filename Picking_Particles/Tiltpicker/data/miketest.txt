@@ -1,0 +1,10 @@
+program: 	particles picked with ApTiltPicker
+DATA image2name: rawu048b.jpg
+DATA image1name: rawu049b.jpg
+DATA filename: miketest.txt
+DATA savetime: Tue Dec  9 11:43:42 2014 EDT
+DATA filetype: text
+date: 	Tue Dec  9 11:43:42 2014 EDTf
+theta:	49.00000
+gamma:	-77.50000
+phi:  	-77.50000

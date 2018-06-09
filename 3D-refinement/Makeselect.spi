@@ -1,0 +1,17 @@
+FR
+?Selection doc file?          
+; [1] select
+FR
+?Odd selection doc file?      
+; [2] selectodd
+FR
+?Even selection doc file?     
+; [3] selecteven
+; prepare document files
+;
+DOC SPLIT
+[1]
+[2]
+[3]
+;
+RE

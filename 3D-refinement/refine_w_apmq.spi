@@ -1,0 +1,481 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+FR
+?INPUT FILTERED PARTICLES?[parts_filt]
+
+FR
+?INPUT UNFILTERED PARTICLES?[parts_unfilt]
+
+RR x15
+?INPUT NUMBER OF PARTICLES?
+
+FR
+?INPUT REFERENCE VOLUME?[ref_vol]
+
+FR
+?OUTPUT DIRECTORY?[out_dir]
+
+FR
+?ABSOLUTE PATH FOR SCRATCH DIRECTORY?[tag]
+
+RR x52  
+?BOX SIZE (PIXELS)?
+
+RR x51
+?RADIUS OF PARTICLES/VOLUME (PIXELS)?
+
+RR x56
+?LAST RING FOR APMQ SEARCH (PIXELS)?
+
+RR [startingAng]
+?STARTING ANGULAR STEP?
+
+RR [numIters]
+?NUMBER OF ANGULAR STEP INCREMENTS?
+
+RR [increment]
+?INCREMENT FOR ANGULAR STEP?
+
+RR x93
+?STANDARD DEVIATION CUTOFF?
+
+RR x87
+?NUMBER OF PROCESSORS TO USE?
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                                                                       
+       
+MD
+TR OFF
+        
+; file info turned off
+        
+MD      
+VB OFF
+;
+MD     
+SET MP     
+x87
+;
+        
+; Procedures used:
+        
+; Makeselect --] Makes select files for FSC calculation
+                                           
+; align3d --] Runs AP MQ, centers particles
+                                  
+;
+;******************************************* VARIABLES*****************************************************************
+
+x78=1
+        
+; x51 - radius of the structure
+            
+;x51=[radius]
+; x52 - image size
+           
+;x52=[boxSize]
+; x58 - image center
+           
+x58=(INT(x52/2)+1)
+; x33 - allowed shift as fraction (of image size)
+x33=0.15
+; x55 - allowed shift in pixels (as a function of image size)
+x55=INT(x33*x52)
+; x54 - first ring for APMQ
+          
+x54=1
+; x56 - last ring for AP MQ
+;x56=[lastring]
+; x60 - search range for AP MQ
+x60=5
+; x59 - step size for search in AP MQ
+x59=1
+;
+      
+; lambda for BP RP
+x27=0.005
+; x85 - mode for BP RP
+x85=3
+; x84 - mode for BP RP of half volumes for RF 3
+x84=2
+; x48 - Smoothing Constant
+	;x48=0.99993 
+	;calculated by batch before use
+	; x44 - "factor" to multiply the smoothing constant by before using in BP RP
+x44=0.95
+; x42 - Reference Volume #
+x42=73
+; x93 - number of standard deviations above the mean where the cutoff will be set for
+; selecting particles
+;x93=[stdDev]
+                                                                       
+;************************************************************************************************************************
+MD
+SET MP
+(x87)
+
+VM
+mkdir [out_dir]
+
+VM
+mkdir [tag]
+
+VM
+cp [parts_filt].spi [tag]/parts_filt.spi
+VM
+cp [parts_unfilt].spi [tag]/parts_unfilt.spi
+VM
+cp [ref_vol].spi [tag]/vol001.spi
+
+
+; copy source files for later reference
+VM
+cp refine_w_apmq.spi [tag]/
+VM
+cp align3d.spi [tag]/
+
+
+; COPY ALL NECESSARY FILES TO SCRATCH DISK!!!
+;
+; x77 - number of reference volume the batch will start with
+x77=1
+
+
+;
+; X61 - number of projections
+            
+;UD N,X61
+;[tag]/select_12241
+
+x61=x15
+
+
+; do 3D projection alignment
+
+                                                 
+DO LB1 x19=1,[numIters]; i
+x76=x19; x0
+x86=x76+1; x0+1
+                                                            
+; BELOW - particular sequence of angular steps, can be modified !!!
+
+x41 = [startingAng] - (x19-1)*[increment] 
+x41
+;
+; Variables to feed to align3d
+                                                            
+; x61 - number of images
+        
+; x52 - image size
+        
+; x58 - image center
+        
+; x55 - allowed shift
+        
+; x51 - object radius
+        
+; x41 - theta step
+; x54 - first ring in AP MQ
+; x56 - last ring in AP MQ
+; x60 - step size for AP MQ
+; x59 - step size for search in AP MQ
+                                                       
+@align3d[x61,x52,x58,x55,x51,x41,x54,x56,x60,x59]
+[tag]/vol{***x76}
+[tag]/parts_filt@*****
+[tag]/parts_unfilt@*****
+[tag]/parts_unfilt_shifted@*****
+[tag]/apmq{***x86}
+[tag]/angular_file_{***x86}
+[tag]/shifts{***x86}
+[tag]/angvoea
+[tag]/selvoea
+
+; Create a select file that excludes images that had a CC below a target
+; value in AP MQ
+ 
+SD E
+[tag]/apmq{***x86}
+  
+ 
+; Calculate the mean and standard deviations for the CC's in apmq*** to set the cutoff to create select file.
+ 
+x16=0 ;to keep sum for mean
+x17=0 ;to keep sum for std. dev.
+ 
+DO LB55 x13=1,x61
+UD IC x13,x14,x15
+[tag]/apmq{***x86}
+x16=x16+x15
+LB55
+x77=x16/x61
+ 
+DO LB66 x13=1,x61
+UD IC x13,x14,x15
+[tag]/apmq{***x86}
+x18=x15-x77
+x18=ABS(x18)
+x17=x17+x18
+LB66
+x88=x17/x61
+x43=(x93*x88) 	;X times the standard deviation ABOVE the mean 
+		;will be the cutoff (this should 
+		;correspond to about 30% of the data accepted)
+x45=x77+x43
+ 
+x99=1
+ 
+DO LB7 x66=1,x61
+UD IC x66,x62,x63
+[tag]/apmq{***x86}
+IF(x63.LT.x45)GOTO LB7
+SD x99,x66
+[tag]/select{***x86}
+x99=x99+1
+LB7
+ 
+UD ICE
+[tag]/apmq{***x86}
+ 
+; prepare document files
+@Makeselect
+[tag]/select{***x86}
+[tag]/selectodd_{***x86}
+[tag]/selecteven_{***x86}
+
+
+                                                              
+; Calculate new, REFIned 3D structure using centered
+     
+; projections and the corrected angles from angular
+        
+; document file angles***.
+
+MD
+SET MP
+(8)
+
+; set variables to be used for lambda and smoothing constant in BP RP
+; assign default values entered at top of batch
+x47=x27
+x48=(1/(1+6*x47))*x44
+; set x11=0 to check BP RP iterations
+x11=0
+
+DO LB91 i=1,100
+
+IF(x11.EQ.50)GOTO LB91
+                                                     
+BP RP x11           
+[tag]/parts_unfilt_shifted@*****
+[tag]/select{***x86}
+x51       
+[tag]/angular_file_{***x86}
+*
+[tag]/tvol{***x86}
+(x47,0)
+(50,x85)
+(0,0)
+(x48)
+     
+; check if BP RP finished the requested 50 iterations.
+; if not, modify lambda and smoothing constant and re-run
+IF(x11.LT.50)THEN
+x47=x47/2
+x48=(1/(1+6*x47))*x44
+GOTO LB91
+ENDIF
+LB91
+
+; center 3D
+        
+;CG PH,x10,x11,x12,x21,x22,x23
+;[tag]/tvol{***x86}
+;SH F
+;[tag]/tvol{***x86}
+;[tag]/vol{***x86}
+;-x21,-x22,-x23
+       
+CP
+[tag]/tvol{***x86}
+[tag]/vol{***x86}
+
+
+DE
+[tag]/tvol{***x86}
+;
+        
+; get two additional volumes to assess the resolution
+        
+;.........................................................
+        
+
+; set variables to be used for lambda and smoothing constant in BP RP
+; assign default values entered at top of batch
+x47=x27
+x48=(1/(1+6*x47))*x44
+; set x11=0 to check BP RP iterations
+x11=0
+
+DO LB92 i=1,100
+
+IF(x11.EQ.50)GOTO LB92
+                                                     
+BP RP x11                              
+[tag]/parts_unfilt_shifted@*****
+[tag]/selectodd_{***x86}
+x51        
+[tag]/angular_file_{***x86}
+*
+[tag]/vol1{***x86}
+(x47,0)
+(50,x84)
+(0,0)
+(x48)
+; check if BP RP finished the requested 50 iterations.
+; if not, modify lambda and smoothing constant and re-run
+IF(x11.LT.50)THEN
+x47=x47/2
+x48=(1/(1+6*x47))*x44
+GOTO LB92
+ENDIF
+LB92
+; set variables to be used for lambda and smoothing constant in BP RP
+; assign default values entered at top of batch
+x47=x27
+x48=(1/(1+6*x47))*x44
+; set x11=0 to check BP RP iterations
+x11=0
+
+DO LB93 i=1,100
+
+IF(x11.EQ.50)GOTO LB93
+                                                     
+BP RP x11               
+[tag]/parts_unfilt_shifted@*****
+[tag]/selecteven_{***x86}
+x51
+[tag]/angular_file_{***x86}
+*
+[tag]/vol2{***x86}
+(x47,0)
+(50,x84)
+(0,0)
+(x48)
+
+; check if BP RP finished the requested 50 iterations.
+; if not, modify lambda and smoothing constant and re-run
+IF(x11.LT.50)THEN
+x47=x47/2
+x48=(1/(1+6*x47))*x44
+GOTO LB93
+ENDIF
+LB93
+                                                                       
+; resolution  
+RF 3
+[tag]/vol1{***x86}
+[tag]/vol2{***x86}
+(1.0)    
+(0.5,1.5)     
+C
+(90.0)      
+(3.0)
+[tag]/dres{***x86}
+                  
+; filter the volume to be used as reference in the next round using a
+; Butterworth filter.
+
+
+x68=(x52-1)/2 ;image size minus 1 divided by 2
+
+DO LB68 x69=3,x68
+;x69=x68-x0+2
+UD IC x69,x37,x38,x88
+[tag]/dres{***x86}
+IF(x88.LT.0.5) GOTO LB69
+LB68
+LB69
+x69=x69-1 ;get the frequency from the previous line (]0.5 FSC)
+UD ICE
+[tag]/dres{***x86}
+UD S x69,x37,x38,x88
+[tag]/dres{***x86}
+IF(x37.GT.0.35) THEN
+x37=0.4
+ENDIF
+x39=x37+0.05
+
+FQ
+[tag]/vol{***x86}
+_7
+(7)
+(x37,x39)
+
+
+
+CP
+[tag]/vol{***x86}
+[tag]/bprp_vol{***x86}
+
+CP
+_7
+[tag]/vol{***x86}
+
+
+
+; Normalize the new filtered volume for the next round
+
+FS x11,x12,x13,x14
+[tag]/vol{***x86}
+
+AR
+[tag]/vol{***x86}
+_8
+(P1-x13)/(x14)
+
+CP
+_8
+[tag]/vol{***x86}
+
+;TH
+;[tag]/vol{***x86}
+;[tag]/vol{***x86}
+;B
+;(0)
+
+
+GOTO LB98
+; Make the values in volume ALL positive by shifting the AVG
+; from 0 to 50
+
+AR
+_8
+_7
+(P1+10)
+
+CP
+_7
+[tag]/vol{***x86}
+
+DE
+_8
+DE
+_7
+
+
+LB98
+
+; COPY ALL THE OUTPUT FROM SCRATCH DISK TO MAIN HARD DRIVE
+
+
+LB1
+
+VM
+cp [tag]/* [out_dir]                                                                         
+
+VM
+rm -r [tag]
+
+EN D

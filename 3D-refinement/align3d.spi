@@ -1,0 +1,230 @@
+[x77,x52,x58,x55,x51,x41,x72,x73,x75,x79]
+; x77 - number of input images
+; x52 - image size
+; x58 - image center
+; x55 - allowed shift
+; x51 - object radius
+; x41 - theta step
+; x72 - first ring for AP MQ
+; x73 - last ring for AP MQ
+; x75 - translation search range for AP MQ
+; x79 - step size for AP MQ
+; x42 - Reference volume number
+;
+x78=1.0
+; x54 - first radius for AP MQ
+x54=1.0
+; x56 - double the size
+x56=2*x52
+; Shift allowed is +-x55, input images are padded
+x57=2*x55+1
+x59=x52-x55+1
+; center of the windowed CCF is at
+x60=x55+1
+;.....................................................................
+; inline buffer used: 1,2,3 and 9 as a stack
+;.....................................................................
+FR
+?Reference volume?
+; [1] R{***x42}_vol{***x76}
+FR
+?Input filtered image series for AP MQ?
+; [2] original data - parts_filt.spi filtered for AP MQ
+FR
+?Input unfiltered image series to align?
+; [3] original data - parts_unfilt.spi
+FR
+?Output unfiltered image series, aligned for BP RP?
+     
+; [4] shifted data - parts_unfilt_shifted.spi
+FR
+?apmd doc file from APMQ?
+; [5] apmq{***x86}
+FR
+?Angular doc file from APMQ?
+; [6] angular_file_x86
+FR
+?Shifts doc file?
+; [7] shifts{***x86}
+FR
+?Temporary angular doc file for APMQ?
+; [8] angvoea
+FR
+?Temporary selection doc file for APMQ?
+; [9] selvoea
+;.....................................................................
+
+
+MD
+TR OFF
+; x53 - number of reference projections
+x41
+VO EA,x53
+x41
+0,90.0
+0,359.9
+[8]
+DOC CREATE
+[9]
+1
+x78-x53
+;
+MS
+_9@
+X52,X52,X78
+X53
+; Use AP MQ command to match original projections to the reference
+; projections.
+PJ 3Q
+[1]
+x51
+[9]
+[8]
+_9@*****
+;
+AP MQ
+_9@*****
+x78-x53
+x75,x79
+x72,x73
+[2]
+X78-X77
+[5]
+;
+; Convert document file produced by AP MQ to the angular document
+; file. At this stage the projections not matching the structure well
+; could be sorted out.
+VO MD
+[8]
+[5]
+[6]
+;
+
+MD
+SET MP
+8
+; use crosscorrelation to center 2D images
+; use already calculated projections as reference images
+; calculate shifts.
+; x91 - average correlation coefficient
+x91=0.0
+;
+DO LB5 i=x78,x77
+x21=x0
+UD S,x21,x81,x82,x83
+[5]
+;
+; invert the sign - the reference projections will be rotated
+x83=-x83
+; get corresponding projection, number is stored in apmq
+IF(x81.GT.0) GOTO LB61
+; theta]90
+x81=-x81
+MR
+_9@{*****x81}
+_3
+Y
+RT SQ
+_3
+_2
+x83
+(0,0)
+; it is assumed that reference projections have theta [=90
+goto LB62
+LB61
+; theta[90
+RT SQ
+_9@{*****x81}
+_2
+x83
+(0,0)
+; it is assumed that reference projections have theta [=90
+LB62
+MA
+_2
+_3
+x51
+D
+E
+(0)
+x58,x58
+;
+PD
+_3
+_2
+x56,x56
+N
+(0.000E+00)
+(1,1)
+;
+; get input projection
+;
+CP
+[3]x21
+_3
+PD
+_3
+_1
+x56,x56
+B
+(1,1)
+;
+; calculate cross-correlation
+CC N
+_1
+_2
+_1
+;
+WI
+_1
+_2
+x57,x57
+x59,x59
+PK x10,x11,x12,x13,x31,x32,x33
+_2
+(0)
+; when there was no peak found translation is (0,0) and peak value
+; x33 is 0. In this case get a value at the origin of the CCF
+; and store in in shift document file. This value is needed for
+; sorting and calculation of the average correlation coeff.
+IF(x33.EQ.0.0) THEN
+GP x33
+_2
+x60,x60
+CP
+_3
+[4]x21
+ELSE
+SH F
+_3
+[4]x21
+-x31,-x32
+ENDIF
+; get the average correlation coefficient.
+x91=x91+x33
+; store the shift parameters
+SD x21,x31,x32,x33
+[7]
+LB5
+;
+x91=x91/x77
+SD -1,x91
+[7]
+SD E
+[7]
+; remove inline files
+DE
+_1
+DE
+_2
+DE
+_3
+DE
+_9@
+; remove temporary files
+
+DE
+[8]
+DE
+[9]
+RE

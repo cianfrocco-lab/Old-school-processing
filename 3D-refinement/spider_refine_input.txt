@@ -1,0 +1,14 @@
+start_lp20			;Filtered particles (no extension)
+start					;Unfiltered particles (no extension)
+201					;Number of particles
+apo_dynein_model_bin2 	 	;Reference volume (no extension)
+testing_refine				;Output directory
+/labdata/allab/michaelc/tmp		;Absolute path to temporary working directory that does NOT exist yet 
+90					;Box size (pixels)
+30					;Radius (pixels)
+30					;Last ring for searching (2*lastring < (BoxSize/2))
+20					;Starting angular step for refinement
+4					;Number of iterations
+2					;Increment for angular step decreases
+1					;Standard deviation particle cutoff (+1=25% included; -1=75%)
+8					;Number of processors
